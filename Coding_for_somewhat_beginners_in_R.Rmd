@@ -1,0 +1,454 @@
+---
+title: "R Coding for non-beginners"
+author: "Amanda Teo"
+date: "05 June 2018"
+output:
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Creating vectors
+
+In R, atomic vectors are the most fundamental of data structures. They are the basis on which all other more complex data structures are built. In this section, some common functions which are used to create atomic vectors are described. These functions are useful for lots of things, but some examples are constructing temporary stores of results, creating unique identifiers, and counters for loops.
+
+```{r gendata}
+
+# create play vectors
+uno <- c(8,8,10)
+dos <- c(8,10)
+tres <- c(10)
+```
+
+```{r inspectdata}
+uno
+is.atomic(uno)
+is.vector(uno)
+```
+
+#### 1. Sequences
+
+The first function is `seq`. This function generates a vector with a sequence of numbers. There are several variants of the function, which are described below.
+
+```{r seq, results = "hold"}
+
+# seq
+seq(from = 25, to = 46, by = 2)
+seq(uno)
+seq(dos)
+seq(tres)
+```
+
+```{r seqalong, results = "hold"}
+
+#seq_along
+seq_along(uno)
+seq_along(dos)
+seq_along(tres)
+
+# can you notice the difference between seq and seq_along?
+```
+
+```{r seqlen, results = "hold"}
+
+#seq_len
+seq_len(tres)
+
+#what happens when you try seq_len(uno)? Why does this not work?
+```
+
+#### 2. Repeating values
+
+Besides creating sequences of numbers, it may also be useful to construct vectors containing replicated values. In this case, the function `rep` can be used to this. There are two variants of this function, as described below.
+
+```{r rep, results = "hold"}
+
+#rep - element replication
+rep(uno, each = 4)
+rep(uno, times = c(2,3,1))
+
+#rep - vector replication
+rep(uno, times = 2)
+rep(uno, length.out = 10)
+```
+
+```{r replen, results = "hold"}
+
+#rep_len
+rep_len(uno, length.out = 10)
+
+#rep_len is a simplified version of rep and only takes in one extra argument length.out
+```
+
+#### 3. Sampling
+
+To draw a random sample from a collection of values, use `sample`.
+
+```{r sample, results = "hold"}
+
+#sample
+sample(uno, 2)
+sample(uno, 10, replace = TRUE)
+
+#why doesnt sample(uno, 10) work?
+```
+
+<P style="page-break-before: always">
+
+### Dataframe basics
+
+Besides vectors, most of data analysis in R will require interaction with dataframes. Dataframes are basically lists (which is a core data structure in R), but with the restriction that all the vectors in the list have the same number of rows. In this section, we will look at some basic manners of interaction with dataframes.
+
+```{r createdf}
+
+#create dataset
+set.seed(123)   #always run before random draw
+df <- data.frame(food1 = sample(seq_len(100), 10), 
+                 food2 = sample(seq_len(100), 10), 
+                 chick = c(rep("A", 5), rep("B", 5)), 
+                 stroked = sample(c("Yes", "No"), 10, replace = TRUE),
+                 stringsAsFactors = FALSE)
+
+head(df)
+
+```
+
+#### 1. Summary statistics
+
+```{r summarystats}
+#structure of dataset
+str(df)
+
+#summary stats
+summary(df$food1)
+
+#number of observations by category
+table(df$chick)
+#proportion of observations by category
+prop.table(table(df$chick))
+
+#twoway table
+table(df$chick, df$stroked)
+#twoway table alternative
+table(df[, c("chick", "stroked")])
+
+# why does the alternative print something slightly different looking?
+```
+
+#### 2. Rename variables
+
+```{r renamecols}
+
+colnames(df)
+#rename the chick and stroked columns to object and petted
+colnames(df)[match(c("chick", "stroked"), colnames(df))] <- c("object", "petted")
+colnames(df)[colnames(df) %in% c("object", "petted")] <- c("chick", "stroked")
+
+#rename columns containing the word food with meal
+colnames(df) <- gsub("food", "meal", colnames(df))
+colnames(df)
+```
+
+<P style="page-break-before: always">
+
+### Missing and infinite values
+
+There are two types of symbols indicating missing values in R: `NA` and `NaN`. They indicate data that is unavailable, or impossible to compute (e.g. 0/0) respectively. Note that missing values are always represented by these two symbols, regardless of whether the data is string or numeric. R also captures negative (`-Inf`) and positive (`Inf`) infinity. 
+
+#### 1. Identifying missing values
+
+```{r isweirdval, results = "hold"}
+
+#capturing missing values
+missing_types <- c(NA, NaN, Inf)
+
+is.na(missing_types)
+is.nan(missing_types)
+is.finite(missing_types)
+```
+
+```{r createmissval}
+
+#create some missing values
+df_na <- df
+df_na[2, "meal1"] <- NA
+df_na[4, "stroked"] <- ""
+df_na$time <- NA 
+
+df_na
+```
+
+```{r identifymissval}
+
+#identify whether variable meal1 has NA or ""
+is.na(df_na$meal1) | df_na$meal1 == ""
+
+sapply(df_na, function(x) {
+  v <- is.na(x) | x == ""
+  sum(v)
+})
+
+#alternative method
+colSums(is.na(df_na) | df_na == "")
+```
+
+#### 2. Removing missing variables
+
+```{r cleanmissval}
+
+#select all variables which are type string
+sapply(df_na, is.character)
+#replace empty strings with NA
+df_na[sapply(df_na, is.character)] <- lapply(df_na[sapply(df_na, is.character)], function(x) {
+    ifelse(x == "", NA, x)
+})
+
+table(df_na$stroked, useNA = c("ifany"))
+
+#drop columns where all data is missing
+colSums(is.na(df_na)) == nrow(df_na)
+df_na <- df_na[ , !(colSums(is.na(df_na)) == nrow(df_na))]
+colnames(df_na)
+
+#drop observations with any NAs in their features
+df_no_na <- df_na[complete.cases(df_na),]
+head(df_no_na)
+```
+
+#### 3. replacement of missing values
+
+```{r replacemissval}
+
+#replace the NA in meal1 with a within-chick average
+df_na$meal1_avg <- ave(df_na$meal1, df$chick, FUN = function(x) mean(x, na.rm = TRUE))
+df_na$meal1 <- with(df_na, ifelse(is.na(meal1), meal1_avg, meal1))
+
+df_na
+
+#reset the NA value
+df_na[2, "meal1"] <- NA
+
+#replace the NA in meal1 with a within chick and stroked average
+df_na$meal1_avg <- ave(df_na$meal1, 
+                       df[c("chick", "stroked")], 
+                       FUN = function(x) mean(x, na.rm = TRUE))
+df_na$meal1 <- with(df_na, ifelse(is.na(meal1), meal1_avg, meal1))
+df_na
+```
+
+<P style="page-break-before: always">
+
+### Combining data
+
+This section will cover the `merge` function, which is used to merge two datasets together. It will also cover two other frequently used functions to combine data, known as `cbind` and `rbind`. These two functions bind columns or rows together respectively.
+
+#### 1. cbind/rbind
+
+To illustrate the use of `cbind` and `rbind`, we show how these two functions can be used to resolve a frequently occuring data analytics problem: storing results. 
+
+The problem is as follows. Assume you have 10 models that you would like to use to predict some outcome from n observations. You would like to store the n x 10 predictions in a dataset, together with a model number indicating which model it came from, so that you can ensemble the predictions together to get an average predicted value for each n observation. How can this be done in R?
+
+```{r predresfunction}
+
+### start by creating a generic function that simulates a set of predictions for n observations
+
+pred_results <- function(x) {
+  runif(x, min = 0, max = 1)
+}
+
+# think of this function as a placeholder for any other analytics technique e.g. OLS regression
+
+# assume we have 5 observations we want to run predictions for
+pred_results(5)
+```
+
+```{r predres}
+
+### steps:
+  # 1. run the simulation for each model (of which there are 10)
+  # 2. add in model number
+  # 3. combine the data together
+
+res_list <- lapply(seq_len(10), function(model_num) {
+  #1
+  res <- pred_results(5)
+  #2
+  cbind(model = model_num,pred = res)
+})
+
+res_list[[2]]
+
+#3
+res_df <- data.frame(do.call(rbind, res_list))
+res_df[6:15,]
+```
+
+#### 2. Merge/append
+
+```{r dataformerge}
+
+#create mock datasets
+price <- data.frame(item = c("fish", "beef"), day = c("mon", "tue"), prices = c(6.5, 8))
+quantity <- data.frame(item = c("fish", "beef", "pancakes"), day = c("mon", "tue", "mon"), quantity = c(2,3,4))
+```
+
+```{r merge}
+
+#merge
+sales <- merge(price, quantity, by = c("item", "day"), all = TRUE)
+sales
+```
+
+```{r append}
+  
+#append
+price2 <- data.frame(item = c("fish", "beef"), day = c("wed", "wed"), prices = c(6, 9))
+price_combi <- rbind(price, price2) 
+#when stacking data using rbind, the inputs need to have exactly the same variables
+str(price_combi)
+```
+
+<P style="page-break-before: always">
+
+### Collapsing data
+
+We are often interested in aggregating data by groups. For example, with a GP visit-level dataset, we may want to count the number of patients who turn up to the GP each day. Therefore, this section shows you how to use `aggregate` to collapse data. It also shows how to build little helper functions to conduct non-standard collapses of data.
+
+#### 1. Aggregate
+
+```{r aggregate}
+
+### sum of values by unique identifiers
+sd_meal1 <- aggregate(meal1 ~ chick + stroked, df, FUN = sd)
+sd_meal1
+
+### applying aggregation function over multiple variables by unique identifiers
+sd_meals <- aggregate(cbind(meal1, meal2) ~ chick + stroked, df, FUN = sd)
+sd_meals
+```
+
+#### 2. Most frequently occuring category
+
+The following code shows how to construct a dataset of the most frequently occuring category by a set of unique identifiers. It was written in a way that keeps, for each unique identifier, all categories which are tied at the most frequent position. In such a situation, `aggregate` will not be helpful because it only keeps one aggregated value per unique identifier.
+
+(note the use of other core functions in R that are generally very useful for data analysis)
+
+``` {r freqcatdata}
+
+#create dataset
+set.seed(124)
+df <- data.frame(id =rep(c("A", "B"),5),
+                 weapon = sample(c("gun", "knife", "explosive"), 10, replace = TRUE),
+                 stringsAsFactors = FALSE
+)
+df <- df[order(df$id),]
+df
+```
+
+```{r freqcatfunction}
+
+#construct function to find the most frequently occuring category
+most_common <- function(x) {
+  ux <- unique(x)
+  x_numeric <- match(x,ux)
+  max_occur <- max(tabulate(x_numeric))
+  ux[which(tabulate(x_numeric) == max_occur)]
+}
+
+#find the most common weapons used by ID A
+most_common(df$weapon[df$id == "A"])
+```
+
+```{r freqcat}
+
+# apply the function across all ids
+most_common_weapon <- tapply(df$weapon, df$id, FUN = most_common)
+
+# for each list object, insert a column with the id associated with it
+ids <- names(most_common_weapon)
+most_common_weapon <- mapply(most_common_weapon, ids, FUN = function(x,y) {
+  cbind(weapon = x,id = y)
+})
+
+#combine all the list objects together
+most_common_weapon <- data.frame(do.call(rbind, most_common_weapon))
+most_common_weapon
+```
+
+<P style="page-break-before: always">
+
+### Reshaping data
+
+The base R function to reshape data is `reshape`. However, this function can be quite onerous to use, because the documentation is not particularly clear. Most R users would recommend packages with more intuitive reshape functions, such as `tidyr` and `reshape2`.
+
+At the same time, learning how to reshape data using base R can be very useful, for all the reasons set out by trinkerrstuff (see <https://trinkerrstuff.wordpress.com/2012/05/03/reshape-from-base-explained-part-i/>).
+
+#### 1. Long to wide
+
+The reshape function takes in several inputs: 
+   
+  * idvar - id variables to retain  
+  * direction - "wide"  
+  * v.names - the variable whose contents is going to be transformed from long into wide  
+  * timevar - the variable that the columns of interest (v.names) will vary over
+
+
+``` {r ltowdata}
+
+#generate a dataset of number of weapons used per person
+df$count <- 1
+df <- aggregate(count~id + weapon, df, length)
+df
+```
+
+``` {r ltow}
+
+df_wide <- reshape(data = df, 
+                   idvar = "id", 
+                   direction = "wide", 
+                   v.names = "count", 
+                   timevar = "weapon")
+df_wide
+
+```
+
+#### 2. Wide to long
+
+Here, the reshape function requires the following inputs:  
+
+  * idvar - id variables to retain  
+  * direction - "long"  
+  * varying - the variables whose contents are going to reshaped from wide to long
+  * times - the names of each category explicitly specified by the varying variable 
+  * timevar - the name of the new identifier created
+  
+
+```{r wtol}
+
+# remove reshape wide attributes
+attr(df_wide, "reshapeWide") <- NULL
+# add in more variables (for fun)
+set.seed(1001)
+df_wide[, c("dmg.explosive", "dmg.gun", "dmg.knife")] <- lapply(1:3, function (x) runif(2))
+
+df_wide
+
+# identify which columns to transform
+grep("\\.", colnames(df_wide))
+# wide to long
+df_long <- reshape(df_wide, idvar = "id", 
+                            direction = "long", 
+                            varying = grep("\\.", colnames(df_wide)), 
+                            times = c("explosive", "gun", "knife"),
+                            timevar = c("weapon")
+                  )
+df_long
+
+#remove pesky row names
+row.names(df_long) <- NULL
+```
+
+
+

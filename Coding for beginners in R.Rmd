@@ -1,0 +1,335 @@
+---
+title: "R Coding for beginners"
+font: Arial
+date: "26 July 2017"
+output:
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This document relies heavily on the book "Advanced R" by Hadley Wickham. You can find much more information about the R programming language in the online copy of the book <http://adv-r.had.co.nz/>.
+
+In this document, 5 key areas will be covered in the following order:  
+
+0. Libraries
+1. Variables
+2. Data Structures
+3. Control Structures
+4. Functions
+  
+## 0. Libraries
+
+R is unlike Stata in the sense that not all functions are pre-loaded in the software. In Stata, you can find all types of analytic algorithms (e.g. truncated regression, quantile regression) pre-loaded. However, in R, many of the more specialised analytic algorithms are not automatically available and thus have to be loaded separately i.e. whenever you open a new instance of R. A lot of non-analytic functionality is also provided through external packages.  
+
+Some common packages used are:  
+
+* `ggplot2` - for graphs
+* `plyr` - for splitting, combining and other manipulations of data
+* `RCurl` - for working with websites
+  
+```{r use libraries, eval = FALSE}
+
+#first off, this is how you comment! Simply put a #
+
+# optional - setting a file path to where your packages are stored (if not the default)
+# note that \ is a  special character so all file paths need to have either \\ or /
+.libPaths("P:/User/Amanda.Teo/R/Packages")
+
+#install a package you dont have
+install.packages("ggplot2")
+
+#load in a package
+library(ggplot2)
+```
+  
+## 1. Variables
+
+In Stata, there is always one main object - the dataset currently being held in memory. You can also create other objects to hold information such as:  
+
+* names of the variables of the dataset
+* count of observations
+
+These objects are known as locals and globals.  
+
+In R, the key difference is that there is less restriction on how many datasets you can juggle at one time. You can hold multiple datasets in memory. You also can hold many other objects (vectors, arrays, matrices) in memory at the same time. All these objects are held in your R workspace and they are called variables/objects. (Note the different definition of *variable* in R vs Stata).  
+
+Variables are frequently used to hold some kind of data structure or objects with a certain class. We will touch on data structures and classes separately below.
+
+```{r manipulating variables}
+
+#assigning an object to a variable name
+name <- "Amanda"
+name
+
+x <- c("hello", "bye")
+x
+
+#removing the variable from the R workspace
+rm(x)
+```
+  
+## 2. Data Structures
+  
+```{r data type table, echo = FALSE}
+
+df <- data.frame(Homogeneous = c("Atomic vector", "Matrix", "Array"), 
+                 Heterogeneous = c("List", "Data frame", ""), 
+                 row.names = c("1d", "2d", "3d"))
+knitr::kable(df, caption = "Types of data structures")
+```
+
+There are 5 main data types used for analysis. These data types differ in the dimensionality of data they can hold, as well as the types of data that it can contain. In R, the four key types are:  
+
+* Logical
+* Integer 
+* Double
+* Character(strings!)
+
+Based on our typology of data structures above, we see that atomic vectors, matrices and arrays can only hold one type at once. On the other hand, lists and data frames (which are equivalent in structure to the datasets in Stata) can contain multiple types at the same time.
+
+
+```{r data structures}
+
+#create a vector
+x <- c(0,1,2,3)
+x
+
+#create a 2x2 matrix of 0s
+y <- matrix(data = 0, ncol = 2, nrow = 2)
+y
+
+#create a list
+#note that you can have nested lists!
+z <- list(vector_obj = x, matrix_obj = y, string_item = "Hello")
+z
+```
+  
+The contents of data structures are accessed or edited through **subsetting**. Subsetting is used to access information within a certain data structure and modify parts of it.
+
+### 2a. Subsetting atomic vectors
+
+Four ways to do so:  
+
+* Positive integers - return elements at the specified positions
+* Negative integers - omit elements at the specified position
+* Logical vectors - select elements where the corresponding logical value is `TRUE`
+* Character vectors - if the vector is named, you can use names to return the corresponding elements
+    
+```{r subsetting atomic vectors}
+
+x <- seq(from = 6, to = 10, length.out = 5)
+x
+
+#positive integers
+x[c(1,2)]
+
+#negative integers
+x[-2]
+
+#logical
+x[c(TRUE, FALSE, FALSE, TRUE, TRUE)]
+
+#characters
+names(x) <- paste0("pos", 1:5)
+x
+x[c("pos2")]
+
+```
+  
+### 2b. Subsetting matrices
+
+Subsetting matrices and lists are similar in concept to subsetting atomic vectors. To access a certain element, one needs to indicate the location of the element, either through its position number or through a name.
+
+In particular, for matrices (and other n-d structures) you can subset them using:  
+
+* multiple vectors
+* single vector
+* a matrix (not covered here)
+  
+```{r subsetting matrices}
+
+x <- matrix(1:9, nrow = 3)
+colnames(x) <- paste0("col", 1:3)
+x
+
+#return rows 1 to 2, and all columns
+x[1:2,]
+
+#return rows 1 and 3, and columns 1 and 2
+x[c(TRUE, FALSE, TRUE), c("col1", "col2")]
+
+#return row 2 and the column 3
+x[2, -(1:2)]
+
+#subsetting using single vector (each element corresponds to a certain position number with the count starting from left to right, top to down)
+x[c(2,9)]
+
+```
+  
+### 2c. Subsetting lists
+
+For lists, you can access information using `[`, `[[` or `$`. `[` will always return a list, while `[[` and `$` will let you directly access components of a list.
+  
+```{r subsetting lists}
+
+y <- list(item1 = c("Hello", "World"), 1:5, diag(2))
+y
+
+#Changing "Hello" to "Bye" - using []
+y[1][1] <- "Bye"
+y
+
+#Changing "Hello" to "Bye" - using [[]] - can you see the difference?
+y <- list(item1 = c("Hello", "World"), 1:5, diag(2))
+y[[1]][1] <- "Bye"
+y
+
+```
+  
+### 2d. Subsetting data frames
+
+As mentioned earlier, data frames store the equivalent of the Stata dataset. It is a special type of list, with each column acting as one component of the list. Therefore, columns can be subsetted from the dataset using the same operators we use with a list.
+  
+```{r subset data frames}
+
+#we use a example dataset from R
+attach(cars)
+str(cars)
+
+#select the first observation in the "speed" column
+cars[1,1]
+
+#select two columns of the cars dataset
+a <- cars[,c("speed", "dist")]
+head(a, 10)
+
+```
+  
+Different subsetting operators will either preserve the original data structure or simplify it. Preserving the data structure keeps the structure of the output the same as the input, and is generally better when programming because you keep intact the original structure. Simplifying a structure is useful when you're running code line by line and you want to interactively check the results.  
+
+The methods to simplify or preserve structure will depend on the original data structure. This is more complicated and will not be covered here,  but it will be an important thing to note if you want to program more extensively in R.
+
+## 3. Control Structures 
+
+Controls are used to control what computations get performed. Some important controls are:  
+
+* if-else
+* loops
+    + Count-controlled loops
+    + Condition-controlled loops
+    + Collection-controlled loops
+    
+These controls will be important when building your own algorithms/functions.   
+  
+```{r demonstrate controls}
+
+#if-else
+dice_roll <- 3
+if (dice_roll <= 3) {
+  dice_outcome <- "Low"
+} else {
+  dice_outcome <- "High"
+}
+dice_outcome
+
+#for loops (count-controlled)
+for (i in 1:5) {
+  print(i)
+}
+
+#while loops (condition-controlled)
+i = 0
+while (i <= 5) {
+  print(i)
+  i = i + 1
+}
+
+#for loops (collection-controlled)
+x <- c("I", "Like", "Cats")
+for (i in x) {
+  print(i)
+}
+```
+  
+On a side note, R is not very fast with loops.This is because when R was built (in C, C++ and Fortran), it was optimised to execute operations on vectors as opposed to individual elements. In other words, R is much faster when applying single operators to vectors than achieving the same thing by conducting repeated operations on single numbers.
+
+A good explanation describing why loops are slow in R can be found here: <http://stackoverflow.com/questions/7142767/why-are-loops-slow-in-r>. For a good explanation on what vectorisation is and why R performs better with vectorised code, do check out this page: <http://www.noamross.net/blog/2014/4/16/vectorization-in-r--why.html>.
+
+If you wish to loop across certain items and perform the same operation each time, you can make use of the `apply` family in R. This set of functions perform loops as well, but without the "bad" stuff that goes on in regular loops. The functions in the family are:  
+
+* `lapply` - returns a list
+* `sapply` - tries to simplify lapply outputs from list into matrices or vectors, if possible
+* `tapply` - when you want to apply a function across sub-groups
+  
+```{r vectorisation}
+
+#trivial vectorisation example - adding two vectors
+v1 <- c(10,20,30)
+v2 <- c(1,2,3)
+v1 + v2
+
+#lapply to find the minimum value across components of a list
+data <- replicate(3, sample(1:20, 4), simplify = FALSE)
+data
+sapply(data, FUN = min)
+
+```
+  
+## 4. Functions   
+
+A function usually takes in one or more inputs, and returns one or more outputs. Within the function should be a set of instructions dictating how the input(s) are used to determine the output(s). If we are constructing a function based on an algorithm, the set of instructions within the function is simply the formalisation of the steps of the algorithm.
+
+Since R is a high level language, there already exists many base functions that can produce very complex outputs. If these base functions do not exist, there is a high chance that another R user would have written and published a function that meets your purpose. Therefore, the point of learning how to write a function is not so you can reinvent the wheel, but so that you can:  
+
+1. Debug your code i.e. why doesn't this function work?
+2. Look under the hood - understand what the function is actually doing
+3. Write your own simple bridging functions e.g. automating a task, creating bespoke outputs
+
+The following shows a trival (but still fun!) example of encoding an algorithm that returns you the nth Fibonnaci number of the Fibonnaci sequence (assuming the sequence count starts from 0):
+  
+```{r compute nth fibonnaci number}
+
+#compute the nth fibonnaci number
+fibonnaci_seq <- function(n) {
+  if (n == 0 | n == 1) {
+    n
+  } else {
+    x_lag2 <- 0
+    x_lag1 <- 1
+    for (i in 2:n) {
+      x <- x_lag1 + x_lag2
+      x_lag2 <- x_lag1
+      x_lag1 <- x
+      
+    }
+    x
+  }
+}
+
+fibonnaci_seq(12)
+
+#do the same - but this time recursively
+fibonnaci_seq_recur <- function(n) {
+  if (n == 0 | n == 1) {
+    n
+  }
+  else {
+    fibonnaci_seq_recur(n-1) + fibonnaci_seq_recur(n-2)
+  }
+}
+
+fibonnaci_seq_recur(12)
+
+#comparing run times! - observe how much slower the recursive function is
+system.time(fibonnaci_seq(25))
+system.time(fibonnaci_seq_recur(25))
+#why is the recursive function slower?
+
+```
+  
+In computer programming, it is important to understand how different implementations of the same algorithm impact memory use and run-time. Of course, for us this is less important because we are not building production-level applications. The outcomes that we care about are quantitative outputs that follow from some statistical/econometric approach.
+
+Nevertheless, it is good to have some idea about what sort of issues could cause your code to run slower than usual. This will ensure that the functions you write do not cause significant bottlenecks in your resulting analysis.
